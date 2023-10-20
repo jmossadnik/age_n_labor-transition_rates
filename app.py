@@ -1,76 +1,163 @@
 import pandas as pd
 import dash
-import dash_core_components as dcc
+from dash import dcc
 import dash_html_components as html
-import plotly.express as px
+from dash.dependencies import Input, Output
+import plotly.subplots as sp
+import plotly.graph_objs as go
 
-# Load and process the data
-df = pd.read_csv('cont_STL.csv')
-df['date'] = pd.to_datetime(df[['year', 'month']].assign(day=12))
-filtered_df = df[df.age_group != ">=65"]
-age_group_labels = sorted(set(filtered_df.age_group))
+df = pd.read_csv('correlationGDP.csv')
+states = ['{}{}'.format(i, j) for i in ['Ef', 'Ep', 'U', 'N'] for j in ['Ef', 'Ep', 'U', 'N'] if i != j]
+ages = [a for a in set(corr_mat.age_group) if a != '16-65']
+ages.sort()
+ages.append('16-65')
 
-# Define fixed colors for each age group
-age_group_colors = {
-    '16-19':'#00876c',
-    '16-64':'#000000',
-    '20-24':'#51a573',
-    '25-29':'#88c27b',
-    '30-34':'#c2dd85',
-    '35-39':'#fff795',
-    '40-44':'#fdcb6e',
-    '45-49':'#f69e56',
-    '50-54':'#e96f4e',
-    '55-64':'#d43d51'
-}
-
-# Create the Dash app
+# Create a Dash app instance
 app = dash.Dash(__name__)
 
-# Define the layout of the app
 app.layout = html.Div([
-    html.H1("Time Series Visualization"),
-    
-    html.Label("Select Flow Variable:"),
+    html.H1('Correlations of cyclical components'),
     dcc.Dropdown(
-        id="flow-variable",
-        options=[{"label": flow, "value": flow} for flow in [
-            "EfEp", "EfU", "EfN", "EpEf", "EpU", "EpN",
-            "UEf", "UEp", "UN", "NEf", "NEp", "NU"
-        ]],
-        value="EfEp"
+        id='state-dropdown',
+        options=[{'label': i, 'value': i} for i in states],
+        value=states[0]
     ),
-    
-    html.Label("Select Age Groups:"),
-    dcc.Dropdown(
-        id="age-group",
-        options=[{"label": ag, "value": ag} for ag in age_group_labels],
-        value=age_group_labels,
-        multi=True
-    ),
-    
-    dcc.Graph(id="line-chart")
+    dcc.Graph(id='time-series-plot'),
+    html.Div([  # Container for the legends and text
+        html.Div(id='legend1-container', style={'display': 'inline-block', 'width':'15%'}),
+        html.Div(id='legend2-container', style={'display': 'inline-block', 'width':'15%'}),
+        html.Div(style={'display': 'inline-block', 'width':'10%'}),
+        html.Div(id='text-container', style={'display': 'inline-block', 'width' : '60%', 'left-margin':'20px'})
+    ])
 ])
 
-# Define the callback function to update the line chart
+
 @app.callback(
-    dash.dependencies.Output("line-chart", "figure"),
-    dash.dependencies.Input("flow-variable", "value"),
-    dash.dependencies.Input("age-group", "value")
+    Output('time-series-plot', 'figure'),
+    [Input('state-dropdown', 'value')]
 )
-def update_line_chart(flow_variable, selected_age_groups):
-    filtered_data = filtered_df[filtered_df.age_group.isin(selected_age_groups)]
-    fig = px.line(
-        filtered_data,
-        x="date",
-        y=flow_variable,
-        color="age_group",
-        color_discrete_map=age_group_colors,  # Use the fixed colors
-        title="Time Series",
-        labels={"date": "Date", flow_variable: "Flow Variable"}
+def update_time_series(state):
+    x = ages
+    filtered_df = df[['age_group'] + [i for i in df.columns if state in i]]
+
+    num_subplots = 9  # Number of subplots
+    rows = 1  # Number of rows for subplots
+    cols = num_subplots  # Number of columns for subplots
+
+    fig = sp.make_subplots(rows=rows, cols=cols, shared_xaxes=True, shared_yaxes=True)
+
+    # Loop over the subplots and plot the data
+    l = -5
+    for col in range(1, num_subplots + 1):
+        l += 1
+        if l <= 0:
+            y = [filtered_df[filtered_df['age_group'] == i]['{}_corr_lag{}'.format(state, -1 * l)].values[0] for i in x]
+            p = [filtered_df[filtered_df['age_group'] == i]['{}_p_lag{}'.format(state, -1 * l)].values[0] for i in x]
+            # blue for positive correlation
+            blue_colors = ['#67a9cf' if p_i > 0.1 else
+                           '#3690c0' if p_i > 0.05 else
+                           '#02818a' if p_i > 0.01 else
+                           '#016c59' for p_i in p]
+            # red for negative correlation
+            red_colors = ['#ef8a62' if p_i > 0.1 else
+                          '#e24a33' if p_i > 0.05 else
+                          '#d91e05' if p_i > 0.01 else
+                          '#b10026' for p_i in p]
+            colors = [red_colors[i] if y[i] < 0 else blue_colors[i] for i in range(len(y))]
+        else:
+            y = [filtered_df[filtered_df['age_group'] == i]['{}_corr_lead{}'.format(state, l)].values[0] for i in x]
+            p = [filtered_df[filtered_df['age_group'] == i]['{}_p_lead{}'.format(state, l)].values[0] for i in x]
+            blue_colors = ['#67a9cf' if p_i > 0.1 else
+                           '#3690c0' if p_i > 0.05 else
+                           '#02818a' if p_i > 0.01 else
+                           '#016c59' for p_i in p]
+            # red for negative correlation
+            red_colors = ['#ef8a62' if p_i > 0.1 else
+                          '#e24a33' if p_i > 0.05 else
+                          '#d91e05' if p_i > 0.01 else
+                          '#b10026' for p_i in p]
+            colors = [red_colors[i] if y[i] < 0 else blue_colors[i] for i in range(len(y))]
+        # Create a horizontal bar chart and add it to the subplot
+        fig.add_trace(go.Bar(y=x, x=y, orientation='h', marker=dict(color=colors), name=f'Lag {l}' if l <= 0 else f'Lead {l}'),
+                      row=1, col=col)
+        fig.update_xaxes(range=[-1, 1], row=1, col=col, title=l)
+             
+        # Add a shape to mark x=0
+        fig.add_shape(type="line", x0=0, x1=0, y0='16-20', y1='16-65', line=dict(color="black", width=1), xref=f'x{col}', yref=f'y{col}')
+        # Add a shape to mark x=-0.5
+        fig.add_shape(type="line", x0=-0.5, x1=-0.5, y0='16-20', y1='16-65', line=dict(color="black", width=.3, dash='dash'), xref=f'x{col}', yref=f'y{col}')
+        # Add a shape to mark x=0.5
+        fig.add_shape(type="line", x0=0.5, x1=0.5, y0='16-20', y1='16-65', line=dict(color="black", width=.3, dash='dash'), xref=f'x{col}', yref=f'y{col}')
+
+    fig.update_layout(
+        title=f'Correlations of the cycle components of the {state} instantaneous transition rate and the cycle component of the real GDP by Age Group',
+        barmode='group',  # 'group' for grouped bars, 'stack' for stacked bars
+        yaxis=dict(title='age groups'),
+        xaxis=dict(range=[-1, 1]),
+        plot_bgcolor='rgb(255, 255, 255)',
+        showlegend=False  # Hide the legend
     )
+
+    fig.update_xaxes(showline=True, linewidth=2, linecolor='black')
+    fig.update_yaxes(showline=True, linewidth=2, linecolor='black')
+
     return fig
 
-# Run the app
+
+color_legend_1 = [
+    ('#67a9cf', 'p >= 0.1'),
+    ('#3690c0', 'p < 0.1'),
+    ('#02818a','p < 0.05'),
+    ('#016c59', 'p < 0.01')
+]
+
+color_legend_2 = [
+    ('#ef8a62', 'p >= 0.1'),
+    ('#e24a33', 'p < 0.1'),
+    ('#d91e05','p < 0.05'),
+    ('#b10026', 'p < 0.01')
+]
+
+
+@app.callback(
+    Output('legend1-container', 'children'),
+    [Input('state-dropdown', 'value')]
+)
+def update_legend1(state):
+    legend_content = html.Div([html.Span('pos. corr.', style={'font-weight': 'bold'})])
+    
+    for color, label in color_legend_1:
+        legend_content.children.append(
+            html.Div(label, style={'background-color': color, 'margin': '5px'})
+        )
+    
+    return legend_content
+
+# Callback for the second legend
+@app.callback(
+    Output('legend2-container', 'children'),
+    [Input('state-dropdown', 'value')]
+)
+def update_legend2(state):
+    legend_content = html.Div([html.Span('neg. corr.', style={'font-weight': 'bold'})])
+    
+    for color, label in color_legend_2:
+        legend_content.children.append(
+            html.Div(label, style={'background-color': color, 'margin': '5px'})
+        )
+    
+    return legend_content
+
+annotation = """The cyclical components were calculated by applying an HP filter on logs of quarterly average data. \n 
+             Correlation was calculated between the cycilcal component of the current transition rate and the cyclical
+             component of real GDP shifted by x months."""
+
+@app.callback(
+    Output('text-container', 'children'),
+    [Input('state-dropdown', 'value')]
+)
+def update_text_container(state):
+    return annotation
+
 if __name__ == '__main__':
-    app.run_server(port=8057)
+    app.run_server(debug=False)
