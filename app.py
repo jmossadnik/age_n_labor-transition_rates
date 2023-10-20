@@ -8,7 +8,7 @@ import plotly.graph_objs as go
 
 df = pd.read_csv('correlationGDP.csv')
 states = ['{}{}'.format(i, j) for i in ['Ef', 'Ep', 'U', 'N'] for j in ['Ef', 'Ep', 'U', 'N'] if i != j]
-ages = [a for a in set(corr_mat.age_group) if a != '16-65']
+ages = [a for a in set(df.age_group) if a != '16-65']
 ages.sort()
 ages.append('16-65')
 
