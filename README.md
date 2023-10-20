@@ -1,10 +1,10 @@
 # Time Series Visualization
 
-This is a Dash app that visualizes time series data for different flow variables and age groups.
+This is a Dash app that visualizes correlations between the cyclical components of GDP and different labor transitions rates for various age groups..
 
 ## Dataset
 
-The dataset used in this app is stored in the `cont_STL.csv` file. It contains data related to flow variables and age groups. Make sure to place this file in the same directory as the `app.py` file.
+The dataset used in this app is stored in the `correlationGDP.csv` file. Make sure to place this file in the same directory as the `app.py` file.
 
 ## Installation
 
@@ -19,7 +19,7 @@ The app will be accessible at `http://localhost:8057` in your web browser.
 ## Usage
 
 1. Select a flow variable from the dropdown menu to visualize the corresponding data.
-2. Choose one or multiple age groups from the dropdown menu to filter the data.
+2. Choose one age groups from the dropdown menu to filter the data.
 3. The line chart will update dynamically based on your selections.
 
 Feel free to explore different flow variables and age groups to gain insights from the visualizations.
