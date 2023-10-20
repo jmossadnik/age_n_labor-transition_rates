@@ -38,3 +38,7 @@ Make sure to install these dependencies before running the app.
 
 This project is licensed under the [MIT License](LICENSE).
 
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jmossadnik/correlation_flow_gdp/HEAD)
+
+
